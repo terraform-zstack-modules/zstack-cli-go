@@ -28,6 +28,7 @@ Update both language versions in the same change. Keep executable commands, defa
 - [PowerShell inventory and reporting examples](../examples/powershell/inventory.md)
 - [VMware PowerCLI migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting)
 - [Name query test plan](../powershell/tests/name-query-plan.md)
+- [Windows PowerShell QA with Packer](../powershell/tests/packer/README.md)
 
 ## Feature planning
 
