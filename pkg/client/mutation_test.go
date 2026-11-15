@@ -55,6 +55,33 @@ func TestMutationPollsWithoutRepeatingWrite(t *testing.T) {
 		t.Fatalf("%v %+v %d %d", err, result, writes.Load(), polls.Load())
 	}
 }
+func TestMutationDecodesBackupAndCloneResponses(t *testing.T) {
+	backup := mutationTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/zstack/v1/volumes/root/vm-backups" {
+			t.Errorf("unexpected backup request %s %s", r.Method, r.URL.Path)
+		}
+		fmt.Fprint(w, `{"inventories":[{"uuid":"backup-1","groupUuid":"group-1"}]}`)
+	})
+	var backups []struct {
+		UUID      string `json:"uuid"`
+		GroupUUID string `json:"groupUuid"`
+	}
+	if err := backup.Mutate(context.Background(), http.MethodPost, "v1/volumes/root/vm-backups", map[string]any{"params": map[string]any{"name": "test"}}, &backups); err != nil || len(backups) != 1 || backups[0].GroupUUID != "group-1" {
+		t.Fatalf("backup response: %v %+v", err, backups)
+	}
+	clone := mutationTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/zstack/v1/vm-instances/vm/actions" {
+			t.Errorf("unexpected clone request %s %s", r.Method, r.URL.Path)
+		}
+		fmt.Fprint(w, `{"success":true,"result":{"numberOfClonedVm":1,"inventories":[{"inventory":{"uuid":"new-vm"}}]}}`)
+	})
+	var result struct {
+		Number int `json:"numberOfClonedVm"`
+	}
+	if err := clone.MutateField(context.Background(), http.MethodPut, "v1/vm-instances/vm/actions", map[string]any{"cloneVmInstance": map[string]any{"names": []string{"new"}}}, "result", &result); err != nil || result.Number != 1 {
+		t.Fatalf("clone response: %v %+v", err, result)
+	}
+}
 func TestMutationRejectsUnsafeCallbacks(t *testing.T) {
 	for _, location := range []string{"http://elsewhere/zstack/v1/api-jobs/id", "http://10.255.255.22:8080/zstack/v1/api-jobs/id", "http://10.255.255.21:8081/zstack/v1/api-jobs/id", "/zstack/v1/accounts", "/zstack/v1/api-jobs/id?token=secret", "/zstack/v1/api-jobs/%2Faccounts", "/zstack/v1/api-jobs/"} {
 		if _, err := apiJobPath("http://server:8080/zstack/", location, "10.255.255.21:8080"); err == nil {

@@ -34,22 +34,30 @@ func NewMutationClient(ctx context.Context) (*MutationClient, error) {
 func (cli *MutationClient) Reader() *ReadClient { return cli.reader }
 
 func (cli *MutationClient) Mutate(ctx context.Context, method, path string, body any, result any) error {
-	return cli.mutate(ctx, method, path, nil, body, result)
+	return cli.mutate(ctx, method, path, nil, body, result, "inventory")
+}
+
+// MutateField decodes a typed non-inventory response from a validated mutation.
+func (cli *MutationClient) MutateField(ctx context.Context, method, path string, body any, field string, result any) error {
+	if field != "result" && field != "results" {
+		return clierr.Wrap(clierr.Usage, fmt.Errorf("unsupported mutation response field"))
+	}
+	return cli.mutate(ctx, method, path, nil, body, result, field)
 }
 
 func (cli *MutationClient) Delete(ctx context.Context, path, mode string) error {
 	if mode != "Permissive" && mode != "Enforcing" {
 		return clierr.Wrap(clierr.Usage, fmt.Errorf("invalid deletion mode"))
 	}
-	return cli.mutate(ctx, http.MethodDelete, path, url.Values{"deleteMode": {mode}}, nil, nil)
+	return cli.mutate(ctx, http.MethodDelete, path, url.Values{"deleteMode": {mode}}, nil, nil, "inventory")
 }
 
 // DeleteWithQuery performs a bounded DELETE for API routes with typed query selectors.
 func (cli *MutationClient) DeleteWithQuery(ctx context.Context, path string, query url.Values) error {
-	return cli.mutate(ctx, http.MethodDelete, path, query, nil, nil)
+	return cli.mutate(ctx, http.MethodDelete, path, query, nil, nil, "inventory")
 }
 
-func (cli *MutationClient) mutate(ctx context.Context, method, path string, query url.Values, body, result any) error {
+func (cli *MutationClient) mutate(ctx context.Context, method, path string, query url.Values, body, result any, responseField string) error {
 	if method != http.MethodPost && method != http.MethodPut && method != http.MethodDelete {
 		return clierr.Wrap(clierr.Usage, fmt.Errorf("unsupported mutation method"))
 	}
@@ -71,10 +79,13 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 		}
 		status := resp.StatusCode
 		var envelope struct {
-			Success   json.RawMessage `json:"success"`
-			Location  string          `json:"location"`
-			Inventory json.RawMessage `json:"inventory"`
-			Error     json.RawMessage `json:"error"`
+			Success     json.RawMessage `json:"success"`
+			Location    string          `json:"location"`
+			Inventory   json.RawMessage `json:"inventory"`
+			Inventories json.RawMessage `json:"inventories"`
+			Result      json.RawMessage `json:"result"`
+			Results     json.RawMessage `json:"results"`
+			Error       json.RawMessage `json:"error"`
 		}
 		if status != http.StatusNoContent {
 			err = decodeJSONDocument(resp.Body, &envelope)
@@ -132,10 +143,18 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 			continue
 		}
 		if result != nil {
-			if len(envelope.Inventory) == 0 || string(envelope.Inventory) == "null" {
+			payload := envelope.Inventory
+			if responseField == "result" {
+				payload = envelope.Result
+			} else if responseField == "results" {
+				payload = envelope.Results
+			} else if len(payload) == 0 || string(payload) == "null" {
+				payload = envelope.Inventories
+			}
+			if len(payload) == 0 || string(payload) == "null" {
 				return clierr.Wrap(clierr.Remote, fmt.Errorf("mutation response missing inventory"))
 			}
-			if err := decodeResponse(envelope.Inventory, result); err != nil {
+			if err := decodeResponse(payload, result); err != nil {
 				return clierr.Wrap(clierr.Remote, fmt.Errorf("invalid mutation inventory"))
 			}
 		}
