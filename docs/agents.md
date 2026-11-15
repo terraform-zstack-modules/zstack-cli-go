@@ -19,7 +19,7 @@ JSON 索引的 category 仅用于发现：`read`、`mutation`、`authentication`
 - 查询使用 `-o json --error-format json`，将 stdout 和 stderr 分开，检查退出码、JSON 结构、资源身份以及详情的 warnings。分页使用稳定排序；分页结果不是快照，缺少样本应报告未覆盖。
 - 单资源操作优先使用确认过的 UUID。重名、未知 context、缺少许可、意外的关联资源都应作为执行障碍，不擅自扩大范围。
 - 写操作仅在用户授权后执行。有 dry-run 时先检查预览，但不要假定它都离线：IAM/job/recover/resize 的预览离线，部分旧 delete/expunge 预览会查询服务器。dry-run 不证明真实执行一定成功。
-- `--yes` 仅用于已经明确授权和确认目标的操作。expunge 不可恢复；resume job、snapshot revert、全局配置修改、基础设施变更均是写操作。
+- `--yes` 仅用于已经明确授权和确认目标的操作。expunge 不可恢复；resume job、snapshot revert、snapshot revert-group、instance revert-backup、全局配置修改、基础设施变更均是写操作。整机备份与快照组使用不同 UUID；恢复前先从 `get volume-backups` 或 `get snapshot-groups` 核对。
 - 给请求/等待设置合适 deadline，使用命令实际支持的 `--request-timeout` 或 `--timeout`，不要把两者混用。不同旧 SDK 写路径的取消能力不完全一致。
 - 写操作失败、超时或输出异常后，先查询已知 UUID。非零退出码不表示服务器没有执行。不要无条件重试创建、扩容、恢复或删除。
 

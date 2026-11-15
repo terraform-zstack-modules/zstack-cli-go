@@ -105,6 +105,51 @@ VM 创建、更新、暂停、恢复运行、停机、重启、删除和回收�
 
 设备写入支持 `--uuid-only -o json` 与 `--yes` 或 `--dry-run`。返回包含 `operation`、`targetUuid`、结果 `uuid` 和 `status`。精确卸载要求传入预期归属。使用精确模式标志后，`instance detach-l3 VM_UUID --nic NIC_UUID` 仅移除选定网卡，`instance detach-iso VM_UUID --cdrom DRIVE_UUID` 仅弹出选定光驱介质。见 [PowerShell 设备操作](powershell.zh-CN.md#云盘卷快照与-vm-设备)。
 
+### 虚拟机迁移、快照组、备份与克隆
+
+以下命令的 `--dry-run` 是离线请求预览，不查询实时资源状态；实际执行会按 UUID 或精确名称解析资源。长操作可用 `--request-timeout` 调整整体期限。迁移能力取决于目标物理机、存储类型和当前云平台版本；备份功能还需相应灾备模块与镜像存储。
+
+```sh
+zstack-cli instance migrate VM_UUID --host HOST_UUID --dry-run -o json
+zstack-cli instance migrate VM_UUID --host HOST_UUID --request-timeout 30m -o json
+zstack-cli instance migrate-storage VM_UUID --primary-storage PS_UUID --with-data-volumes --with-snapshots -o json
+zstack-cli instance clone VM_UUID --name web-01-copy --full -o json
+```
+
+`instance migrate` 是运行中虚拟机的物理机迁移；`migrate-storage` 改变主存储，可选目标物理机。`clone --full` 表示**连已挂载的数据云盘一起克隆**，不是某种独立于源盘的“全量克隆”保证；不指定时由 Cloud 处理默认克隆范围。执行后检查返回虚拟机 UUID 和状态。
+
+```sh
+zstack-cli snapshot create-group VM_UUID --name before-upgrade --with-memory -o json
+zstack-cli get snapshot-groups -q 'vmInstanceUuid=VM_UUID' -o json
+zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --dry-run -o json
+zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --yes -o json
+```
+
+快照组以虚拟机根盘为入口，按 Cloud 支持的范围包含关联云盘；`--with-memory` 请求内存快照。`revert-group` 将原虚拟机回滚到快照点，可能覆盖当前数据，默认交互确认。它与单盘 `snapshot revert` 分开；快照本身不等于独立备份。
+
+```sh
+zstack-cli instance backup VM_UUID --backup-storage BS_UUID --name web-01-backup -o json
+zstack-cli volume backup VOLUME_UUID --backup-storage BS_UUID --name disk-backup -o json
+zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --dry-run -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --yes -o json
+zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name web-01-restored \
+  --instance-offering OFFERING_UUID --l3-network L3_UUID -o json
+# 也可用 --cpu 1 --memory 1G 替代 --instance-offering。
+```
+
+`instance backup` 从虚拟机根盘 UUID 创建整机备份，并在结果中返回备份组 UUID；单盘使用 `volume backup`。`test-qa` 实测中，未挂载测试数据盘的备份返回 HTTP 503，挂载后备份成功；重试前应核对云盘实时状态与当前 Cloud 的要求。`--mode` 可传当前 Cloud 支持的备份模式，CLI 不替服务器判断许可和模式。`revert-backup` **覆盖原虚拟机数据**，默认交互确认；`create-from-backup` 创建另一台虚拟机。恢复命令只接受 32 位十六进制备份组 UUID，不按名称猜测。写请求失败或超时后先查询备份组、虚拟机和任务状态，再决定是否重试。
+
+只清理已核实属于本次任务的资源；备份和快照组按各自的 UUID 删除，命令先读取并核对身份：
+
+```sh
+zstack-cli delete snapshot-group SNAPSHOT_GROUP_UUID --yes
+zstack-cli delete volume-backup VOLUME_BACKUP_UUID --yes
+zstack-cli delete vm-backup BACKUP_GROUP_UUID --yes
+```
+
+删除并彻底清理克隆 VM 后，还要按已记录 UUID 查询其云盘。`test-qa` 实测中，`clone --full` 生成的数据盘在 VM 彻底清理后仍存在，需单独执行 `delete volume` 和 `expunge volume`。[真实验证记录](vm-operations-plan.zh-CN.md#test-qa-真实验证2026-11-14)列出了已通过和因 Cloud HTTP 503 未通过的操作。
+
 ## 5. IAM 管理
 
 | 资源 | 创建 | 更新 | 删除 | 额外操作 |

@@ -107,6 +107,51 @@ For exact UUID lifecycle automation, use `--uuid-only -o json` with `--yes` or `
 
 Device writes support `--uuid-only -o json` with `--yes` or `--dry-run`. The response identifies the `operation`, `targetUuid`, resulting `uuid`, and `status`. Exact detach commands take the expected owner. For example, `instance detach-l3 VM_UUID --nic NIC_UUID` removes only that adapter, and `instance detach-iso VM_UUID --cdrom DRIVE_UUID` ejects media from that drive. Include the exact-mode flags for both examples. See the [PowerShell device workflow](powershell.md#disks-volume-snapshots-and-vm-devices).
 
+### VM migration, snapshot groups, backup and clone
+
+The commands below provide offline `--dry-run` request previews. Real execution resolves UUIDs or exact names and may use `--request-timeout` for long operations. Migration depends on host, storage and Cloud version. Backup also requires the applicable disaster-recovery module and backup storage.
+
+```sh
+zstack-cli instance migrate VM_UUID --host HOST_UUID --dry-run -o json
+zstack-cli instance migrate VM_UUID --host HOST_UUID --request-timeout 30m -o json
+zstack-cli instance migrate-storage VM_UUID --primary-storage PS_UUID --with-data-volumes --with-snapshots -o json
+zstack-cli instance clone VM_UUID --name web-01-copy --full -o json
+```
+
+`instance migrate` moves a running VM to another host. `migrate-storage` changes primary storage and can also select a destination host. For `clone`, `--full` **includes attached data volumes**; it does not promise a particular independent full-copy format. Inspect the returned VM UUID and state.
+
+```sh
+zstack-cli snapshot create-group VM_UUID --name before-upgrade --with-memory -o json
+zstack-cli get snapshot-groups -q 'vmInstanceUuid=VM_UUID' -o json
+zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --dry-run -o json
+zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --yes -o json
+```
+
+A snapshot group starts from the VM root volume and includes the related volumes supported by Cloud. `--with-memory` requests a memory snapshot. `revert-group` rolls the original VM back and can replace current data, so it asks for confirmation by default. It is separate from the single-volume `snapshot revert`. Snapshots are not independent backups.
+
+```sh
+zstack-cli instance backup VM_UUID --backup-storage BS_UUID --name web-01-backup -o json
+zstack-cli volume backup VOLUME_UUID --backup-storage BS_UUID --name disk-backup -o json
+zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --dry-run -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --yes -o json
+zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name web-01-restored \
+  --instance-offering OFFERING_UUID --l3-network L3_UUID -o json
+# Alternatively, use --cpu 1 --memory 1G instead of --instance-offering.
+```
+
+`instance backup` uses the VM root-volume UUID and returns a backup-group UUID. Use `volume backup` for one volume. In the `test-qa` live run, backup of a detached test data volume returned HTTP 503, while backup succeeded after attachment; verify the volume's current state and Cloud requirements before retrying. `--mode` passes a mode supported by the selected Cloud server; the CLI cannot establish licensing or mode support offline. `revert-backup` **replaces data on the original VM** and asks for confirmation. `create-from-backup` creates another VM. Restore commands require a 32-character hexadecimal backup-group UUID. After an error or timeout, query the backup group, VM and job state before retrying.
+
+Clean up only resources verified as belonging to the current task. Delete backups and snapshot groups by their distinct UUIDs; the commands read and check resource identity first:
+
+```sh
+zstack-cli delete snapshot-group SNAPSHOT_GROUP_UUID --yes
+zstack-cli delete volume-backup VOLUME_BACKUP_UUID --yes
+zstack-cli delete vm-backup BACKUP_GROUP_UUID --yes
+```
+
+After deleting and expunging a cloned VM, query its recorded volume UUIDs. In the `test-qa` run, the data volume created by `clone --full` remained after VM expunge and required its own `delete volume` and `expunge volume`. The [live validation record](vm-operations-plan.md#live-validation-in-test-qa-2026-11-14) lists operations that passed and those still blocked by Cloud HTTP 503.
+
 ## 5. IAM management
 
 | Resource | Create | Update | Delete | Additional behavior |

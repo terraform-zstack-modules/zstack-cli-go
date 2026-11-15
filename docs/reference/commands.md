@@ -69,10 +69,13 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli delete role](#zstack-cli-delete-role)
 - [zstack-cli delete security-group](#zstack-cli-delete-security-group)
 - [zstack-cli delete snapshot](#zstack-cli-delete-snapshot)
+- [zstack-cli delete snapshot-group](#zstack-cli-delete-snapshot-group)
 - [zstack-cli delete user](#zstack-cli-delete-user)
 - [zstack-cli delete vip](#zstack-cli-delete-vip)
+- [zstack-cli delete vm-backup](#zstack-cli-delete-vm-backup)
 - [zstack-cli delete vm-script](#zstack-cli-delete-vm-script)
 - [zstack-cli delete volume](#zstack-cli-delete-volume)
+- [zstack-cli delete volume-backup](#zstack-cli-delete-volume-backup)
 - [zstack-cli delete zone](#zstack-cli-delete-zone)
 - [zstack-cli describe](#zstack-cli-describe)
 - [zstack-cli describe instance](#zstack-cli-describe-instance)
@@ -122,6 +125,7 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli get roles](#zstack-cli-get-roles)
 - [zstack-cli get security-group-rules](#zstack-cli-get-security-group-rules)
 - [zstack-cli get security-groups](#zstack-cli-get-security-groups)
+- [zstack-cli get snapshot-groups](#zstack-cli-get-snapshot-groups)
 - [zstack-cli get snapshots](#zstack-cli-get-snapshots)
 - [zstack-cli get tags](#zstack-cli-get-tags)
 - [zstack-cli get users](#zstack-cli-get-users)
@@ -130,6 +134,7 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli get virtual-routers](#zstack-cli-get-virtual-routers)
 - [zstack-cli get vm-script-records](#zstack-cli-get-vm-script-records)
 - [zstack-cli get vm-scripts](#zstack-cli-get-vm-scripts)
+- [zstack-cli get volume-backups](#zstack-cli-get-volume-backups)
 - [zstack-cli get zones](#zstack-cli-get-zones)
 - [zstack-cli global-config](#zstack-cli-global-config)
 - [zstack-cli global-config set](#zstack-cli-global-config-set)
@@ -147,13 +152,19 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli instance attach-iso](#zstack-cli-instance-attach-iso)
 - [zstack-cli instance attach-l3](#zstack-cli-instance-attach-l3)
 - [zstack-cli instance attach-volume](#zstack-cli-instance-attach-volume)
+- [zstack-cli instance backup](#zstack-cli-instance-backup)
+- [zstack-cli instance clone](#zstack-cli-instance-clone)
+- [zstack-cli instance create-from-backup](#zstack-cli-instance-create-from-backup)
 - [zstack-cli instance detach-iso](#zstack-cli-instance-detach-iso)
 - [zstack-cli instance detach-l3](#zstack-cli-instance-detach-l3)
 - [zstack-cli instance detach-volume](#zstack-cli-instance-detach-volume)
+- [zstack-cli instance migrate](#zstack-cli-instance-migrate)
+- [zstack-cli instance migrate-storage](#zstack-cli-instance-migrate-storage)
 - [zstack-cli instance pause](#zstack-cli-instance-pause)
 - [zstack-cli instance recover](#zstack-cli-instance-recover)
 - [zstack-cli instance restart](#zstack-cli-instance-restart)
 - [zstack-cli instance resume](#zstack-cli-instance-resume)
+- [zstack-cli instance revert-backup](#zstack-cli-instance-revert-backup)
 - [zstack-cli instance start](#zstack-cli-instance-start)
 - [zstack-cli instance stop](#zstack-cli-instance-stop)
 - [zstack-cli instance update](#zstack-cli-instance-update)
@@ -198,7 +209,9 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli skill install](#zstack-cli-skill-install)
 - [zstack-cli snapshot](#zstack-cli-snapshot)
 - [zstack-cli snapshot create](#zstack-cli-snapshot-create)
+- [zstack-cli snapshot create-group](#zstack-cli-snapshot-create-group)
 - [zstack-cli snapshot revert](#zstack-cli-snapshot-revert)
+- [zstack-cli snapshot revert-group](#zstack-cli-snapshot-revert-group)
 - [zstack-cli update](#zstack-cli-update)
 - [zstack-cli update account](#zstack-cli-update-account)
 - [zstack-cli update backup-storage](#zstack-cli-update-backup-storage)
@@ -226,6 +239,7 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli vm-script execute](#zstack-cli-vm-script-execute)
 - [zstack-cli volume](#zstack-cli-volume)
 - [zstack-cli volume attach](#zstack-cli-volume-attach)
+- [zstack-cli volume backup](#zstack-cli-volume-backup)
 - [zstack-cli volume detach](#zstack-cli-volume-detach)
 - [zstack-cli volume recover](#zstack-cli-volume-recover)
 - [zstack-cli volume resize](#zstack-cli-volume-resize)
@@ -1459,10 +1473,13 @@ Available Commands:
   role                       delete an IAM role
   security-group             Delete a security group
   snapshot                   Delete a volume snapshot
+  snapshot-group             Delete a snapshot-group by UUID
   user                       delete an IAM user
   vip                        Delete a VIP
+  vm-backup                  Delete a vm-backup by UUID
   vm-script                  Delete a VM script
   volume                     Delete a data volume
+  volume-backup              Delete a volume-backup by UUID
   zone                       Delete a zone
 
 Flags:
@@ -2045,6 +2062,29 @@ Global Flags:
       --version               Show zstack-cli version
 ```
 
+## zstack-cli delete snapshot-group
+
+```text
+Delete a snapshot-group by UUID
+
+Usage:
+  zstack-cli delete snapshot-group <uuid> [flags]
+
+Flags:
+  -h, --help                       help for snapshot-group
+      --request-timeout duration   Deadline for lookup and deletion (default 30m0s)
+  -y, --yes                        Automatic yes to confirmation prompts
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Only print the object that would be deleted, without sending the request
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -f, --file string           Filename, directory, or URL to files containing resource definitions to delete
+  -o, --output string         Output format (json|yaml)
+  -v, --verbose               Enable verbose output
+      --version               Show zstack-cli version
+```
+
 ## zstack-cli delete user
 
 ```text
@@ -2083,6 +2123,29 @@ Aliases:
 Flags:
   -h, --help   help for vip
   -y, --yes    Automatic yes to confirmation prompts
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Only print the object that would be deleted, without sending the request
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -f, --file string           Filename, directory, or URL to files containing resource definitions to delete
+  -o, --output string         Output format (json|yaml)
+  -v, --verbose               Enable verbose output
+      --version               Show zstack-cli version
+```
+
+## zstack-cli delete vm-backup
+
+```text
+Delete a vm-backup by UUID
+
+Usage:
+  zstack-cli delete vm-backup <uuid> [flags]
+
+Flags:
+  -h, --help                       help for vm-backup
+      --request-timeout duration   Deadline for lookup and deletion (default 30m0s)
+  -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -2134,6 +2197,29 @@ Flags:
   -h, --help                       help for volume
       --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
       --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Automatic yes to confirmation prompts
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Only print the object that would be deleted, without sending the request
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -f, --file string           Filename, directory, or URL to files containing resource definitions to delete
+  -o, --output string         Output format (json|yaml)
+  -v, --verbose               Enable verbose output
+      --version               Show zstack-cli version
+```
+
+## zstack-cli delete volume-backup
+
+```text
+Delete a volume-backup by UUID
+
+Usage:
+  zstack-cli delete volume-backup <uuid> [flags]
+
+Flags:
+  -h, --help                       help for volume-backup
+      --request-timeout duration   Deadline for lookup and deletion (default 30m0s)
   -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
@@ -2565,6 +2651,7 @@ Available Commands:
   roles                       List IAM roles
   security-group-rules        List security-group-rules
   security-groups             List security-groups
+  snapshot-groups             List VM snapshot groups
   snapshots                   List volume snapshots
   tags                        List resource tags
   users                       List account users
@@ -2573,6 +2660,7 @@ Available Commands:
   virtual-routers             List virtual routers
   vm-script-records           List VM script execution records
   vm-scripts                  List VM instance scripts
+  volume-backups              List VM and volume backups
   zones                       List zones
 
 Flags:
@@ -3601,6 +3689,35 @@ Global Flags:
       --version               Show zstack-cli version
 ```
 
+## zstack-cli get snapshot-groups
+
+```text
+List VM snapshot groups
+
+Usage:
+  zstack-cli get snapshot-groups [name] [flags]
+
+Flags:
+      --all-pages                  Fetch every page; --limit is the page size
+      --count                      Return count of matching records only
+      --fields strings             Fields to display (use comma without spaces: --fields name,uuid,type or multiple flags: --fields name --fields type)
+      --group-by string            Group results by field
+  -h, --help                       help for snapshot-groups
+  -l, --limit int                  Maximum number of results to return
+  -o, --output string              Output format: table, json, yaml, or text (default "table")
+      --pagination                 Include total count when querying snapshot groups
+  -q, --q stringArray              Query condition, can be specified multiple times
+      --reply-with-count           Include total count in response
+      --request-timeout duration   Deadline for authentication and all query pages (default 30s)
+      --sort string                Sort results by field (e.g. '+name' or '-createDate')
+  -s, --start int                  Starting index for results
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --version               Show zstack-cli version
+```
+
 ## zstack-cli get snapshots
 
 ```text
@@ -3824,6 +3941,35 @@ Flags:
       --reply-with-count           Include total count in response
       --request-timeout duration   Deadline for authentication and all query pages (default 30s)
       --show-full-script           Show full script content instead of truncated version
+      --sort string                Sort results by field (e.g. '+name' or '-createDate')
+  -s, --start int                  Starting index for results
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli get volume-backups
+
+```text
+List VM and volume backups
+
+Usage:
+  zstack-cli get volume-backups [name] [flags]
+
+Flags:
+      --all-pages                  Fetch every page; --limit is the page size
+      --count                      Return count of matching records only
+      --fields strings             Fields to display (use comma without spaces: --fields name,uuid,type or multiple flags: --fields name --fields type)
+      --group-by string            Group results by field
+  -h, --help                       help for volume-backups
+  -l, --limit int                  Maximum number of results to return
+  -o, --output string              Output format: table, json, yaml, or text (default "table")
+      --pagination                 Include total count when querying backups
+  -q, --q stringArray              Query condition, can be specified multiple times
+      --reply-with-count           Include total count in response
+      --request-timeout duration   Deadline for authentication and all query pages (default 30s)
       --sort string                Sort results by field (e.g. '+name' or '-createDate')
   -s, --start int                  Starting index for results
 
@@ -4168,19 +4314,25 @@ Usage:
   zstack-cli instance [command]
 
 Available Commands:
-  attach-iso    Attach an ISO image to a VM instance
-  attach-l3     Attach an L3 network to a VM instance
-  attach-volume Attach a data volume to a VM instance
-  detach-iso    Detach an ISO image from a VM instance
-  detach-l3     Detach an L3 network from a VM instance
-  detach-volume Detach a data volume from a VM instance
-  pause         Pause a virtual machine instance (name or uuid).
-  recover       recover a instance
-  restart       Restart a virtual machine instance (name or uuid).
-  resume        Resume a paused virtual machine instance (name or uuid).
-  start         Start virtual machine instance
-  stop          Stop a virtual machine instance (name or uuid).
-  update        Update a VM instance
+  attach-iso         Attach an ISO image to a VM instance
+  attach-l3          Attach an L3 network to a VM instance
+  attach-volume      Attach a data volume to a VM instance
+  backup             Create a VM backup
+  clone              Clone a VM
+  create-from-backup Create a new VM from a backup
+  detach-iso         Detach an ISO image from a VM instance
+  detach-l3          Detach an L3 network from a VM instance
+  detach-volume      Detach a data volume from a VM instance
+  migrate            Migrate a running VM to another host
+  migrate-storage    Migrate a VM to another primary storage
+  pause              Pause a virtual machine instance (name or uuid).
+  recover            recover a instance
+  restart            Restart a virtual machine instance (name or uuid).
+  resume             Resume a paused virtual machine instance (name or uuid).
+  revert-backup      Restore the original VM from a backup
+  start              Start virtual machine instance
+  stop               Stop a virtual machine instance (name or uuid).
+  update             Update a VM instance
 
 Flags:
       --dry-run          Preview the API request without sending it
@@ -4273,6 +4425,84 @@ Global Flags:
   -y, --yes                   Automatic yes to prompts
 ```
 
+## zstack-cli instance backup
+
+```text
+Create a VM backup
+
+Usage:
+  zstack-cli instance backup <name-or-uuid> [flags]
+
+Flags:
+      --backup-storage string      Destination backup storage name or UUID
+  -d, --description string         Backup description
+  -h, --help                       help for backup
+      --mode string                Backup mode supported by the Cloud server
+      --name string                Backup name
+      --request-timeout duration   Deadline for lookup and backup creation (default 30m0s)
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
+## zstack-cli instance clone
+
+```text
+Clone a VM
+
+Usage:
+  zstack-cli instance clone <name-or-uuid> [flags]
+
+Flags:
+      --full                       Include attached data volumes in the clone
+  -h, --help                       help for clone
+      --name string                Name of the new VM
+      --request-timeout duration   Deadline for resolution and clone (default 30m0s)
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
+## zstack-cli instance create-from-backup
+
+```text
+Create a new VM from a backup
+
+Usage:
+  zstack-cli instance create-from-backup <group-uuid> [flags]
+
+Flags:
+      --backup-storage string      Optional source backup storage name or UUID
+      --cpu int                    CPU count instead of an instance offering (requires --memory)
+  -h, --help                       help for create-from-backup
+      --instance-offering string   Instance offering name or UUID
+      --l3-network strings         L3 network name or UUID; repeat for multiple networks
+      --memory string              Memory size instead of an instance offering, for example 1G (requires --cpu)
+      --name string                New VM name
+      --request-timeout duration   Deadline for lookup and VM creation (default 30m0s)
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
 ## zstack-cli instance detach-iso
 
 ```text
@@ -4336,6 +4566,55 @@ Flags:
       --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
       --uuid-only                  Use exact UUIDs with the fixed JSON operation result
       --volume string              Data volume name or UUID
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
+## zstack-cli instance migrate
+
+```text
+Migrate a running VM to another host
+
+Usage:
+  zstack-cli instance migrate <name-or-uuid> [flags]
+
+Flags:
+  -h, --help                       help for migrate
+      --host string                Destination host name or UUID
+      --request-timeout duration   Deadline for resolution and migration (default 30m0s)
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
+## zstack-cli instance migrate-storage
+
+```text
+Migrate a VM to another primary storage
+
+Usage:
+  zstack-cli instance migrate-storage <name-or-uuid> [flags]
+
+Flags:
+  -h, --help                       help for migrate-storage
+      --host string                Optional destination host name or UUID
+      --primary-storage string     Destination primary storage name or UUID
+      --request-timeout duration   Deadline for resolution and migration (default 30m0s)
+      --with-data-volumes          Migrate attached data volumes
+      --with-snapshots             Include volume snapshots
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4443,6 +4722,29 @@ Flags:
   -h, --help                       help for resume
       --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
       --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: json, yaml, table, wide, or name
+      --version               Show zstack-cli version
+  -y, --yes                   Automatic yes to prompts
+```
+
+## zstack-cli instance revert-backup
+
+```text
+Restore the original VM from a backup
+
+Usage:
+  zstack-cli instance revert-backup <group-uuid> [flags]
+
+Flags:
+      --backup-storage string      Optional source backup storage name or UUID
+  -h, --help                       help for revert-backup
+      --request-timeout duration   Deadline for lookup and backup restore (default 30m0s)
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -5477,8 +5779,10 @@ Usage:
   zstack-cli snapshot [command]
 
 Available Commands:
-  create      Create a volume snapshot
-  revert      Revert a volume from a snapshot
+  create       Create a volume snapshot
+  create-group Create a VM snapshot group
+  revert       Revert a volume from a snapshot
+  revert-group Revert a VM from a snapshot group
 
 Flags:
       --dry-run          Preview the API request without sending it
@@ -5523,6 +5827,30 @@ Global Flags:
       --version               Show zstack-cli version
 ```
 
+## zstack-cli snapshot create-group
+
+```text
+Create a VM snapshot group
+
+Usage:
+  zstack-cli snapshot create-group <instance-name-or-uuid> [flags]
+
+Flags:
+  -d, --description string         Snapshot group description
+  -h, --help                       help for create-group
+      --name string                Snapshot group name
+      --request-timeout duration   Deadline for resolution and snapshot creation (default 30m0s)
+      --with-memory                Include VM memory
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: text, table, json, yaml, or name (default "text")
+      --version               Show zstack-cli version
+```
+
 ## zstack-cli snapshot revert
 
 ```text
@@ -5536,6 +5864,28 @@ Flags:
       --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
       --uuid-only                  Use exact UUIDs with the fixed JSON operation result
       --volume string              Expected parent volume UUID in exact UUID mode
+  -y, --yes                        Automatic yes to confirmation prompts
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: text, table, json, yaml, or name (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli snapshot revert-group
+
+```text
+Revert a VM from a snapshot group
+
+Usage:
+  zstack-cli snapshot revert-group <group-uuid> [flags]
+
+Flags:
+  -h, --help                       help for revert-group
+      --request-timeout duration   Deadline for lookup and snapshot revert (default 30m0s)
   -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
@@ -6181,6 +6531,7 @@ Usage:
 
 Available Commands:
   attach      Attach a data volume to a VM instance
+  backup      Create a volume backup
   detach      Detach a data volume from its VM instance
   recover     recover a volume
   resize      resize a volume
@@ -6213,6 +6564,31 @@ Flags:
       --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
       --uuid-only                  Use exact UUIDs with the fixed JSON operation result
   -y, --yes                        Confirm the operation in exact UUID mode
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --dry-run               Preview the API request without sending it
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --fields strings        Custom fields to display in table output
+  -o, --output string         Output format: text, table, json, yaml, or name (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli volume backup
+
+```text
+Create a volume backup
+
+Usage:
+  zstack-cli volume backup <name-or-uuid> [flags]
+
+Flags:
+      --backup-storage string      Destination backup storage name or UUID
+  -d, --description string         Backup description
+  -h, --help                       help for backup
+      --mode string                Backup mode supported by the Cloud server
+      --name string                Backup name
+      --request-timeout duration   Deadline for lookup and backup creation (default 30m0s)
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
