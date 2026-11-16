@@ -2,7 +2,7 @@
 name: zstack-operations
 description: 使用 zstack-cli 查询、诊断和管理 ZStack 云资源，监控 CPU、内存和主存储使用率，处理 context、分页、任务等待、资源生命周期和写操作失败恢复。适用于用户要求操作 ZStack 环境；不用于开发 CLI 源码、通用云架构咨询或其他云平台。
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # ZStack operations
@@ -20,7 +20,7 @@ metadata:
 | --- | --- |
 | 指定云主机及 ZQL、资源使用率（monitor usage）、查询、分页、详情、doctor、会话与 context | [queries.md](references/queries.md) |
 | PowerShell 子进程凭据输入与启动输出 | [cli-powershell-auth.md](references/cli-powershell-auth.md) |
-| 实例/盘/快照恢复、扩容、任务操作 | [lifecycle.md](references/lifecycle.md) |
+| 实例/盘/快照恢复、扩容、迁移、备份、克隆、任务操作 | [lifecycle.md](references/lifecycle.md) |
 | 账户、用户、策略、角色、组织和项目 | [iam.md](references/iam.md) |
 | 非零退出、写入结果未知、清理或回归 | [failures.md](references/failures.md) |
 

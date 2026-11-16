@@ -29,6 +29,35 @@ zstack-cli job clean JOB_UUID --context lab --yes -o json
 
 snapshot revert 会改变盘内容。job resume 仅接受 Suspended，clean 仅接受 Succeeded/Failed/Canceled；resume 返回不等于作业完成，必要时继续 wait。不要把 get 查询出的失败任务自动 clean。
 
+## 虚拟机迁移、快照组与备份
+
+先运行对应命令的 `--help` 核对已安装二进制。以下写命令有离线 `--dry-run`；迁移和备份的实际可用性取决于云端版本、存储和许可。
+
+```sh
+zstack-cli instance migrate VM_UUID --host HOST_UUID --context lab --dry-run -o json
+zstack-cli instance migrate-storage VM_UUID --primary-storage PS_UUID --with-data-volumes --context lab -o json
+zstack-cli instance clone VM_UUID --name CLONE_NAME --full --context lab -o json
+zstack-cli snapshot create-group VM_UUID --name SNAPSHOT_NAME --context lab -o json
+zstack-cli get snapshot-groups -q 'vmInstanceUuid=VM_UUID' --context lab -o json
+zstack-cli instance backup VM_UUID --backup-storage BS_UUID --name BACKUP_NAME --context lab -o json
+zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' --context lab -o json
+```
+
+迁移到物理机要求 VM 为 Running。`clone --full` 表示包含已挂载数据盘。创建整机备份时以 VM 为目标，命令解析根盘并返回备份组 UUID；单盘使用 `volume backup`。快照组与备份是不同资源，前者不能当独立备份。
+
+```sh
+zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --context lab --yes -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --context lab --yes -o json
+zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name RESTORED_VM \
+  --cpu 1 --memory 1G --l3-network L3_UUID --context lab -o json
+```
+
+前两条会覆盖原虚拟机当前数据，执行前确认目标和备份点；整机备份回滚必须传预期原 VM UUID，CLI 完整分页读取备份组并核对每条记录的 VM 身份，页数不完整时拒绝。`--yes` 只用于已授权的目标。`create-from-backup` 新建虚拟机。恢复命令使用 32 位十六进制组 UUID，超时后先查询备份、快照组、虚拟机和作业状态，不自动重试。
+
+本轮新建的备份与快照组清理使用 `delete vm-backup BACKUP_GROUP_UUID`、`delete volume-backup VOLUME_BACKUP_UUID`、`delete snapshot-group SNAPSHOT_GROUP_UUID`。这三条命令先核对 UUID；`--dry-run` 离线预览。只清理 journal 确认由本轮创建的对象。
+
+克隆 VM 删除并 expunge 后，仍需按 journal 中的云盘 UUID 查询。`test-qa` 实测发现 `clone --full` 附带的数据盘仍存在，必须在确认已解绑且属于本轮资源后单独 `delete volume`、`expunge volume`，并复查不存在。该环境的 VM/快照组/备份详情接口返回单元素 `inventories` 数组；CLI 已兼容该格式。
+
 写后查询核对 UUID 和目标属性：挂载的 vmInstanceUuid、扩容后的 size、恢复后的 state/status。缺少字段不能算验证成功。服务器可能直接彻底清理删除对象，此时报告无法验证 recover，不擅自创建替代对象。
 
 设备写入使用 `--uuid-only -o json`，并传入 `--yes` 或 `--dry-run`。独立数据盘卸载要求指定预期 VM UUID，快照恢复和删除要求指定预期父卷 UUID。选择网卡和光驱时优先使用精确设备 UUID。

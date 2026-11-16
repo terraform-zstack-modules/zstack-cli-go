@@ -200,7 +200,7 @@ func init() {
 	describe.DescribeCmd.ValidArgs = []string{"instance", "volume", "long-job", "job"}
 	describe.DescribeCmd.Args = cobra.OnlyValidArgs
 
-	del.DeleteCmd.ValidArgs = []string{"alarm", "alarms", "backup-storage", "backup-storages", "bs", "cluster", "clusters", "eip", "eips", "host", "hosts", "image", "images", "image-storage", "image-storages", "instance", "instances", "ip-range", "ip-ranges", "l2-network", "l2-networks", "l3-network", "l3-networks", "load-balancer", "load-balancers", "lb", "load-balancer-listener", "load-balancer-listeners", "lb-listener", "load-balancer-server-group", "load-balancer-server-groups", "lb-server-group", "port-forwarding", "port-forwarding-rules", "pf", "primary-storage", "primary-storages", "ps", "security-group", "security-groups", "sg", "snapshot", "snapshots", "vip", "vips", "vm-script", "vm-scripts", "volume", "volumes", "zone", "zones"}
+	del.DeleteCmd.ValidArgs = []string{"alarm", "alarms", "backup-storage", "backup-storages", "bs", "cluster", "clusters", "eip", "eips", "host", "hosts", "image", "images", "image-storage", "image-storages", "instance", "instances", "ip-range", "ip-ranges", "l2-network", "l2-networks", "l3-network", "l3-networks", "load-balancer", "load-balancers", "lb", "load-balancer-listener", "load-balancer-listeners", "lb-listener", "load-balancer-server-group", "load-balancer-server-groups", "lb-server-group", "port-forwarding", "port-forwarding-rules", "pf", "primary-storage", "primary-storages", "ps", "security-group", "security-groups", "sg", "snapshot", "snapshot-group", "snapshots", "vip", "vips", "vm-backup", "vm-script", "vm-scripts", "volume", "volume-backup", "volumes", "zone", "zones"}
 	del.DeleteCmd.Args = cobra.OnlyValidArgs
 
 	expunge.ExpungeCmd.ValidArgs = []string{"image", "images", "image-group", "image-groups", "instance", "instances", "volume", "volumes"}
@@ -212,7 +212,7 @@ func init() {
 		"global-config", "global-configs", "hosts", "images", "image-groups", "image-storages",
 		"instance-offerings", "instances", "ip-ranges", "l2-networks", "l3-networks", "long-jobs", "jobs",
 		"management-nodes", "nics", "organizations", "orgs", "iam2-organizations", "policies", "primary-storages",
-		"projects", "iam2-projects", "roles", "snapshots", "tags", "users", "vips", "virtual-router-offerings",
+		"projects", "iam2-projects", "roles", "snapshots", "snapshot-groups", "tags", "users", "vips", "virtual-router-offerings", "volume-backups",
 		"virtual-routers", "vm-scripts", "vm-script-records", "zones",
 	}
 

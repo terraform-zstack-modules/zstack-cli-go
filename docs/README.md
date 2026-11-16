@@ -18,6 +18,8 @@
 
 The migration plans and completion checklists in this directory record implementation decisions and dated validation evidence. Start with the user manual for current operation. The latest accumulated evidence is in [next-stage-checklist.md](next-stage-checklist.md). Historical documents and raw validation summaries retain their original language.
 
+The [VM operations plan](vm-operations-plan.md) records the migration, snapshot-group, backup and clone command contracts.
+
 ## Maintaining translations
 
 Update both language versions in the same change. Keep executable commands, default values and safety conditions consistent. Each maintained guide has a link to its counterpart. Run local link checks and compare examples against CLI help after changing documents. Preserve existing Chinese guide paths so current links remain valid.

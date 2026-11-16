@@ -19,7 +19,7 @@ Index categories are discovery hints. Inspect actual behavior before acting. For
 - Use `-o json --error-format json`, separate stdout/stderr, and check exit status, response shape, resource identity and detail warnings. Stable sorting helps pagination, while concurrent resource changes can affect comparisons. Record unavailable samples as uncovered.
 - Prefer verified UUIDs for single-resource actions. Ambiguous names, missing contexts, unavailable licenses and unexpected dependencies require investigation within the user's scope.
 - Execute writes when authorized. Preview when available. IAM/job/recover/resize dry-run is offline, while some older delete/expunge previews query the server. Validate real state separately.
-- Use `--yes` for already-authorized targets. Expunge is irreversible. Snapshot revert, task resume, global configuration and infrastructure changes are mutations.
+- Use `--yes` for already-authorized targets. Expunge is irreversible. Snapshot revert, snapshot-group revert, VM backup restore, task resume, global configuration and infrastructure changes are mutations. Backup groups and snapshot groups have different UUIDs; confirm their identities with `get volume-backups` or `get snapshot-groups` before restoring.
 - Use the deadline flag supported by the command. Wait commonly uses `--timeout` and other read commands use `--request-timeout`. Cancellation behavior of older SDK write paths varies.
 - After write timeout, cancellation or output failure, query the known UUID to establish the server outcome before considering a retry.
 
