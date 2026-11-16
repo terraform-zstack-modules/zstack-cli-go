@@ -95,7 +95,7 @@ func TestVMOperationsRequestContracts(t *testing.T) {
 			case "/zstack/v1/volumes":
 				inventory(w, map[string]any{"uuid": rootTestUUID, "name": "disk"})
 			case "/zstack/v1/volume-backups":
-				inventory(w, map[string]any{"uuid": rootTestUUID, "name": "backup", "groupUuid": groupTestUUID, "vmInstanceUuid": vmTestUUID})
+				fmt.Fprintf(w, `{"inventories":[{"uuid":"%s","name":"backup","groupUuid":"%s","vmInstanceUuid":"%s"}],"total":1}`, rootTestUUID, groupTestUUID, vmTestUUID)
 			case "/zstack/v1/volume-snapshots/group/" + groupTestUUID:
 				fmt.Fprintf(w, `{"inventories":[{"uuid":"%s","vmInstanceUuid":"%s"}]}`, groupTestUUID, vmTestUUID)
 			default:
@@ -200,7 +200,7 @@ func TestVMRestoreDeclinedBeforeWrite(t *testing.T) {
 			return
 		}
 		if strings.Contains(r.URL.Path, "volume-backups") {
-			inventory(w, map[string]any{"uuid": rootTestUUID, "groupUuid": groupTestUUID, "vmInstanceUuid": vmTestUUID})
+			fmt.Fprintf(w, `{"inventories":[{"uuid":"%s","groupUuid":"%s","vmInstanceUuid":"%s"}],"total":1}`, rootTestUUID, groupTestUUID, vmTestUUID)
 			return
 		}
 		if strings.Contains(r.URL.Path, "vm-instances") {
@@ -249,10 +249,10 @@ func TestVMBackupRestoreRejectsWrongOrMissingSourceVM(t *testing.T) {
 					t.Errorf("unexpected lookup %s", r.URL.Path)
 				}
 				rows := make([]map[string]any, 0, len(tc.owners))
-				for _, owner := range tc.owners {
-					rows = append(rows, map[string]any{"uuid": rootTestUUID, "groupUuid": groupTestUUID, "vmInstanceUuid": owner})
+				for n, owner := range tc.owners {
+					rows = append(rows, map[string]any{"uuid": fmt.Sprintf("%032x", n+1), "groupUuid": groupTestUUID, "vmInstanceUuid": owner})
 				}
-				_ = json.NewEncoder(w).Encode(map[string]any{"inventories": rows})
+				_ = json.NewEncoder(w).Encode(map[string]any{"inventories": rows, "total": len(rows)})
 			})
 			out, stderr, err := invokeCLI(t, cfg, "", "instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID, "--yes", "-o", "json")
 			mu.Lock()
@@ -260,6 +260,85 @@ func TestVMBackupRestoreRejectsWrongOrMissingSourceVM(t *testing.T) {
 			mu.Unlock()
 			if err == nil || gotWrites != 0 || out != "" || !strings.Contains(stderr, "identity") {
 				t.Fatalf("unsafe restore accepted: %v writes=%d stdout=%s stderr=%s", err, gotWrites, out, stderr)
+			}
+		})
+	}
+}
+
+func TestVMBackupRestoreReadsEveryPageBeforeWrite(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		secondOwner   string
+		secondTotal   int
+		secondEmpty   bool
+		secondRepeat  bool
+		expectedWrite int
+	}{
+		{"all pages agree", vmTestUUID, 101, false, false, 1},
+		{"later page belongs to another VM", targetTestUUID, 101, false, false, 0},
+		{"later page omits total", vmTestUUID, -1, false, false, 0},
+		{"later page is empty", vmTestUUID, 101, true, false, 0},
+		{"total changes between pages", vmTestUUID, 102, false, false, 0},
+		{"later page repeats a record", vmTestUUID, 101, false, true, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			writes, pages := 0, 0
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method != http.MethodGet {
+					mu.Lock()
+					writes++
+					mu.Unlock()
+					fmt.Fprint(w, `{"success":true}`)
+					return
+				}
+				if r.URL.Path == "/zstack/v1/vm-instances" {
+					inventory(w, map[string]any{"uuid": vmTestUUID, "name": "original"})
+					return
+				}
+				if r.URL.Path != "/zstack/v1/volume-backups" {
+					t.Errorf("unexpected lookup %s", r.URL.Path)
+					return
+				}
+				q := r.URL.Query()
+				if q.Get("q") != "groupUuid="+groupTestUUID || q.Get("replyWithCount") != "true" || q.Get("sort") != "+uuid" || q.Get("limit") != "100" {
+					t.Errorf("unsafe pagination query: %v", q)
+				}
+				mu.Lock()
+				pages++
+				mu.Unlock()
+				if q.Get("start") == "0" {
+					rows := make([]map[string]any, 100)
+					for n := range rows {
+						rows[n] = map[string]any{"uuid": fmt.Sprintf("%032x", n+1), "groupUuid": groupTestUUID, "vmInstanceUuid": vmTestUUID}
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"inventories": rows, "total": 101})
+					return
+				}
+				if q.Get("start") != "100" {
+					t.Errorf("unexpected page offset %q", q.Get("start"))
+				}
+				id := fmt.Sprintf("%032x", 101)
+				if tc.secondRepeat {
+					id = fmt.Sprintf("%032x", 1)
+				}
+				rows := []map[string]any{{"uuid": id, "groupUuid": groupTestUUID, "vmInstanceUuid": tc.secondOwner}}
+				if tc.secondEmpty {
+					rows = []map[string]any{}
+				}
+				response := map[string]any{"inventories": rows}
+				if tc.secondTotal >= 0 {
+					response["total"] = tc.secondTotal
+				}
+				_ = json.NewEncoder(w).Encode(response)
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", "instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID, "--yes", "-o", "json")
+			mu.Lock()
+			gotWrites, gotPages := writes, pages
+			mu.Unlock()
+			if gotPages != 2 || gotWrites != tc.expectedWrite || (err == nil) != (tc.expectedWrite == 1) {
+				t.Fatalf("pagination result: err=%v pages=%d writes=%d stdout=%s stderr=%s", err, gotPages, gotWrites, out, stderr)
 			}
 		})
 	}

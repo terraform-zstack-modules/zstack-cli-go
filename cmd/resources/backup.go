@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/query"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
@@ -135,23 +136,45 @@ func isVolumeDryRun(cmd *cobra.Command) bool {
 }
 
 func queryBackupGroup(ctx context.Context, cli *client.MutationClient, groupUUID string) ([]view.VolumeBackupInventoryView, error) {
-	var response struct {
-		Inventories []view.VolumeBackupInventoryView `json:"inventories"`
-	}
 	values := url.Values{"q": {"groupUuid=" + groupUUID}}
-	if err := cli.Reader().Read(ctx, "v1/volume-backups", values, &response); err != nil {
-		return nil, err
-	}
-	var matched []view.VolumeBackupInventoryView
-	for _, backup := range response.Inventories {
-		if backup.GroupUuid == groupUUID {
-			matched = append(matched, backup)
+	expectedTotal := -1
+	result, err := query.Run(ctx, values, true, func(ctx context.Context, pageValues url.Values) (query.Result[view.VolumeBackupInventoryView], error) {
+		var response struct {
+			Inventories *[]view.VolumeBackupInventoryView `json:"inventories"`
+			Total       *int                              `json:"total"`
 		}
+		if err := cli.Reader().Read(ctx, "v1/volume-backups", pageValues, &response); err != nil {
+			return query.Result[view.VolumeBackupInventoryView]{}, err
+		}
+		if response.Inventories == nil || response.Total == nil {
+			return query.Result[view.VolumeBackupInventoryView]{}, fmt.Errorf("server omitted backup inventories or total")
+		}
+		if expectedTotal >= 0 && *response.Total != expectedTotal {
+			return query.Result[view.VolumeBackupInventoryView]{}, fmt.Errorf("backup group total changed during pagination")
+		}
+		expectedTotal = *response.Total
+		return query.Result[view.VolumeBackupInventoryView]{Items: *response.Inventories, Total: response.Total}, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("backup group pagination incomplete: %w", err)
 	}
-	if len(matched) == 0 {
+	if result.Total == nil || len(result.Items) != *result.Total {
+		return nil, fmt.Errorf("backup group pagination incomplete: received %d records", len(result.Items))
+	}
+	seen := make(map[string]struct{}, len(result.Items))
+	for _, backup := range result.Items {
+		if backup.GroupUuid != groupUUID || backup.UUID == "" {
+			return nil, fmt.Errorf("backup group query returned an unidentified or unrelated record")
+		}
+		if _, exists := seen[backup.UUID]; exists {
+			return nil, fmt.Errorf("backup group pagination repeated a record")
+		}
+		seen[backup.UUID] = struct{}{}
+	}
+	if len(result.Items) == 0 {
 		return nil, fmt.Errorf("VM backup group %s not found", groupUUID)
 	}
-	return matched, nil
+	return result.Items, nil
 }
 
 func newInstanceRevertBackupCommand() *cobra.Command {
