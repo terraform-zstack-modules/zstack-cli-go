@@ -36,7 +36,7 @@ PROFILES = {
         ("snapshot", "revert-group"): ("yes", "dry-run"),
         ("instance", "backup"): ("backup-storage", "name", "dry-run"),
         ("volume", "backup"): ("backup-storage", "name", "dry-run"),
-        ("instance", "revert-backup"): ("yes", "dry-run"),
+        ("instance", "revert-backup"): ("instance", "yes", "dry-run"),
         ("instance", "create-from-backup"): ("name", "cpu", "memory", "dry-run"),
         ("get", "volume-backups"): ("all-pages", "output"),
         ("get", "snapshot-groups"): ("all-pages", "output"),

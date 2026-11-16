@@ -14,7 +14,7 @@ This plan covers the SDK v0.0.10 VM operations missing from the CLI. It is a sou
 | VM snapshot group | `snapshot create-group <vm> --name <name> [--with-memory]`; `snapshot revert-group <group-uuid>` | `CreateVolumeSnapshotGroup`, `RevertVmFromSnapshotGroup` |
 | VM backup | `instance backup <vm> --backup-storage <storage> --name <name> [--mode <mode>]` | `CreateVmBackup` |
 | Volume backup | `volume backup <volume> --backup-storage <storage> --name <name> [--mode <mode>]` | `CreateVolumeBackup` |
-| Restore the original VM | `instance revert-backup <group-uuid> [--backup-storage <storage>] --yes` | `RevertVmFromVmBackup` |
+| Restore the original VM | `instance revert-backup <group-uuid> --instance <original-vm-uuid> [--backup-storage <storage>] --yes` | `RevertVmFromVmBackup` |
 | Create another VM from backup | `instance create-from-backup <group-uuid> --name <name> (--instance-offering <offering> \| --cpu <n> --memory <size>) [--l3-network <network>]...` | `CreateVmFromVmBackup` |
 | Discover backups | `get volume-backups`; `get snapshot-groups` | `QueryVolumeBackup`, `QueryVolumeSnapshotGroup` |
 | Clean up owned test data | `delete vm-backup <group-uuid>`; `delete volume-backup <uuid>`; `delete snapshot-group <group-uuid>` | `DeleteVmBackup`, `DeleteVolumeBackup`, `DeleteVolumeSnapshotGroup` |

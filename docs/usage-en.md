@@ -133,14 +133,14 @@ A snapshot group starts from the VM root volume and includes the related volumes
 zstack-cli instance backup VM_UUID --backup-storage BS_UUID --name web-01-backup -o json
 zstack-cli volume backup VOLUME_UUID --backup-storage BS_UUID --name disk-backup -o json
 zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' -o json
-zstack-cli instance revert-backup BACKUP_GROUP_UUID --dry-run -o json
-zstack-cli instance revert-backup BACKUP_GROUP_UUID --yes -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --dry-run -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --yes -o json
 zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name web-01-restored \
   --instance-offering OFFERING_UUID --l3-network L3_UUID -o json
 # Alternatively, use --cpu 1 --memory 1G instead of --instance-offering.
 ```
 
-`instance backup` uses the VM root-volume UUID and returns a backup-group UUID. Use `volume backup` for one volume. In the `test-qa` live run, backup of a detached test data volume returned HTTP 503, while backup succeeded after attachment; verify the volume's current state and Cloud requirements before retrying. `--mode` passes a mode supported by the selected Cloud server; the CLI cannot establish licensing or mode support offline. `revert-backup` **replaces data on the original VM** and asks for confirmation. `create-from-backup` creates another VM. Restore commands require a 32-character hexadecimal backup-group UUID. After an error or timeout, query the backup group, VM and job state before retrying.
+`instance backup` uses the VM root-volume UUID and returns a backup-group UUID. Use `volume backup` for one volume. In the `test-qa` live run, backup of a detached test data volume returned HTTP 503, while backup succeeded after attachment; verify the volume's current state and Cloud requirements before retrying. `--mode` passes a mode supported by the selected Cloud server; the CLI cannot establish licensing or mode support offline. `revert-backup` **replaces data on the original VM** and requires the expected original VM's 32-character UUID. Before the write, every backup record must identify that VM; missing or mixed identities are rejected, and the confirmation names the VM. `create-from-backup` creates another VM. Restore commands require a 32-character hexadecimal backup-group UUID. After an error or timeout, query the backup group, VM and job state before retrying.
 
 Clean up only resources verified as belonging to the current task. Delete backups and snapshot groups by their distinct UUIDs; the commands read and check resource identity first:
 

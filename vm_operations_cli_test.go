@@ -30,7 +30,7 @@ func TestVMOperationsDryRunIsOffline(t *testing.T) {
 		{"volume", "backup", "disk", "--backup-storage", "storage", "--name", "backup"},
 		{"snapshot", "create-group", "vm", "--name", "checkpoint"},
 		{"snapshot", "revert-group", groupTestUUID},
-		{"instance", "revert-backup", groupTestUUID},
+		{"instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID},
 		{"instance", "create-from-backup", groupTestUUID, "--name", "restored", "--cpu", "1", "--memory", "1G"},
 	}
 	for _, args := range cases {
@@ -59,6 +59,7 @@ func TestVMOperationsRejectMissingTargetBeforeNetwork(t *testing.T) {
 		{"instance", "backup", "vm", "--name", "backup"},
 		{"snapshot", "create-group", "vm"},
 		{"instance", "revert-backup", "bad-group"},
+		{"instance", "revert-backup", groupTestUUID},
 		{"instance", "create-from-backup", groupTestUUID, "--name", "restored"},
 	} {
 		if _, _, err := invokeCLI(t, cfg, "", args...); err == nil {
@@ -94,7 +95,7 @@ func TestVMOperationsRequestContracts(t *testing.T) {
 			case "/zstack/v1/volumes":
 				inventory(w, map[string]any{"uuid": rootTestUUID, "name": "disk"})
 			case "/zstack/v1/volume-backups":
-				inventory(w, map[string]any{"uuid": rootTestUUID, "name": "backup", "groupUuid": groupTestUUID})
+				inventory(w, map[string]any{"uuid": rootTestUUID, "name": "backup", "groupUuid": groupTestUUID, "vmInstanceUuid": vmTestUUID})
 			case "/zstack/v1/volume-snapshots/group/" + groupTestUUID:
 				fmt.Fprintf(w, `{"inventories":[{"uuid":"%s","vmInstanceUuid":"%s"}]}`, groupTestUUID, vmTestUUID)
 			default:
@@ -111,6 +112,8 @@ func TestVMOperationsRequestContracts(t *testing.T) {
 		writes = append(writes, observed{r.Method, r.URL.Path, body})
 		mu.Unlock()
 		switch {
+		case body["migrateVm"] != nil || body["primaryStorageMigrateVm"] != nil:
+			fmt.Fprintf(w, `{"inventory":{"uuid":"%s","name":"result"}}`, vmTestUUID)
 		case body["cloneVmInstance"] != nil:
 			fmt.Fprintf(w, `{"success":true,"result":{"numberOfClonedVm":1,"inventories":[{"inventory":{"uuid":"%s"}}]}}`, targetTestUUID)
 		case strings.HasSuffix(r.URL.Path, "/vm-backups"):
@@ -136,7 +139,7 @@ func TestVMOperationsRequestContracts(t *testing.T) {
 		{[]string{"volume", "backup", "disk", "--backup-storage", "storage", "--name", "backup"}, "POST", "/zstack/v1/volumes/" + rootTestUUID + "/volume-backups", "params"},
 		{[]string{"snapshot", "create-group", "vm", "--name", "checkpoint"}, "POST", "/zstack/v1/volume-snapshots/group", "params"},
 		{[]string{"snapshot", "revert-group", groupTestUUID, "--yes"}, "PUT", "/zstack/v1/volume-snapshots/group/" + groupTestUUID + "/actions", "revertVmFromSnapshotGroup"},
-		{[]string{"instance", "revert-backup", groupTestUUID, "--yes"}, "PUT", "/zstack/v1/vm-backups/" + groupTestUUID + "/actions", "revertVmFromVmBackup"},
+		{[]string{"instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID, "--yes"}, "PUT", "/zstack/v1/vm-backups/" + groupTestUUID + "/actions", "revertVmFromVmBackup"},
 		{[]string{"instance", "create-from-backup", groupTestUUID, "--name", "restored", "--cpu", "1", "--memory", "1G"}, "POST", "/zstack/v1/vm-instances/from/vm-backups/" + groupTestUUID, "params"},
 	}
 	for _, tc := range cases {
@@ -197,12 +200,16 @@ func TestVMRestoreDeclinedBeforeWrite(t *testing.T) {
 			return
 		}
 		if strings.Contains(r.URL.Path, "volume-backups") {
-			inventory(w, map[string]any{"uuid": rootTestUUID, "groupUuid": groupTestUUID})
+			inventory(w, map[string]any{"uuid": rootTestUUID, "groupUuid": groupTestUUID, "vmInstanceUuid": vmTestUUID})
+			return
+		}
+		if strings.Contains(r.URL.Path, "vm-instances") {
+			inventory(w, map[string]any{"uuid": vmTestUUID, "name": "original"})
 			return
 		}
 		fmt.Fprintf(w, `{"inventories":[{"uuid":"%s","vmInstanceUuid":"%s"}]}`, groupTestUUID, vmTestUUID)
 	})
-	for _, args := range [][]string{{"instance", "revert-backup", groupTestUUID}, {"snapshot", "revert-group", groupTestUUID}} {
+	for _, args := range [][]string{{"instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID}, {"snapshot", "revert-group", groupTestUUID}} {
 		out, stderr, err := invokeCLI(t, cfg, "no\n", args...)
 		if err != nil || !strings.Contains(out, "Aborted") {
 			t.Fatalf("decline failed: %v %s %s", err, out, stderr)
@@ -214,6 +221,95 @@ func TestVMRestoreDeclinedBeforeWrite(t *testing.T) {
 	}
 	if writes != 0 {
 		t.Fatalf("declined restore sent %d writes", writes)
+	}
+}
+
+func TestVMBackupRestoreRejectsWrongOrMissingSourceVM(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		owners []string
+	}{
+		{"wrong VM", []string{targetTestUUID}},
+		{"mixed VMs", []string{vmTestUUID, targetTestUUID}},
+		{"missing VM identity", []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			writes := 0
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method != http.MethodGet {
+					mu.Lock()
+					writes++
+					mu.Unlock()
+					fmt.Fprint(w, `{}`)
+					return
+				}
+				if r.URL.Path != "/zstack/v1/volume-backups" {
+					t.Errorf("unexpected lookup %s", r.URL.Path)
+				}
+				rows := make([]map[string]any, 0, len(tc.owners))
+				for _, owner := range tc.owners {
+					rows = append(rows, map[string]any{"uuid": rootTestUUID, "groupUuid": groupTestUUID, "vmInstanceUuid": owner})
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"inventories": rows})
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", "instance", "revert-backup", groupTestUUID, "--instance", vmTestUUID, "--yes", "-o", "json")
+			mu.Lock()
+			gotWrites := writes
+			mu.Unlock()
+			if err == nil || gotWrites != 0 || out != "" || !strings.Contains(stderr, "identity") {
+				t.Fatalf("unsafe restore accepted: %v writes=%d stdout=%s stderr=%s", err, gotWrites, out, stderr)
+			}
+		})
+	}
+}
+
+func TestVMOperationsRejectUnverifiableMutationResults(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		uuid string
+	}{
+		{"host migration wrong VM", []string{"instance", "migrate", "vm", "--host", "host"}, targetTestUUID},
+		{"host migration no VM", []string{"instance", "migrate", "vm", "--host", "host"}, ""},
+		{"storage migration wrong VM", []string{"instance", "migrate-storage", "vm", "--primary-storage", "storage"}, targetTestUUID},
+		{"storage migration no VM", []string{"instance", "migrate-storage", "vm", "--primary-storage", "storage"}, ""},
+		{"snapshot group no UUID", []string{"snapshot", "create-group", "vm", "--name", "checkpoint"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			writes := 0
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodGet {
+					switch r.URL.Path {
+					case "/zstack/v1/vm-instances":
+						inventory(w, map[string]any{"uuid": vmTestUUID, "name": "vm", "state": "Running"})
+					case "/zstack/v1/vm-instances/" + vmTestUUID:
+						fmt.Fprintf(w, `{"inventory":{"uuid":"%s","rootVolumeUuid":"%s"}}`, vmTestUUID, rootTestUUID)
+					case "/zstack/v1/hosts":
+						inventory(w, map[string]any{"uuid": targetTestUUID, "name": "host"})
+					case "/zstack/v1/primary-storage":
+						inventory(w, map[string]any{"uuid": targetTestUUID, "name": "storage"})
+					default:
+						t.Errorf("unexpected lookup %s", r.URL.Path)
+					}
+					return
+				}
+				mu.Lock()
+				writes++
+				mu.Unlock()
+				fmt.Fprintf(w, `{"inventory":{"uuid":"%s"}}`, tc.uuid)
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", append(tc.args, "-o", "json")...)
+			mu.Lock()
+			gotWrites := writes
+			mu.Unlock()
+			if err == nil || gotWrites != 1 || out != "" || !strings.Contains(stderr, "query") {
+				t.Fatalf("unverified result accepted: %v writes=%d stdout=%s stderr=%s", err, gotWrites, out, stderr)
+			}
+		})
 	}
 }
 

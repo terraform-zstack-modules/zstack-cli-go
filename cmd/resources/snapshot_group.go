@@ -64,6 +64,9 @@ func newSnapshotCreateGroupCommand() *cobra.Command {
 		if err := cli.Mutate(ctx, http.MethodPost, "v1/volume-snapshots/group", request, &result); err != nil {
 			return err
 		}
+		if result.UUID == "" {
+			return fmt.Errorf("snapshot group response omitted UUID; query snapshot groups before retrying")
+		}
 		return printSnapshotResult(cmd, fmt.Sprintf("snapshot-group/%s created", result.UUID), result)
 	}
 	return cmd

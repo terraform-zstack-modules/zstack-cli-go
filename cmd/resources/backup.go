@@ -156,6 +156,7 @@ func queryBackupGroup(ctx context.Context, cli *client.MutationClient, groupUUID
 
 func newInstanceRevertBackupCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "revert-backup <group-uuid>", Short: "Restore the original VM from a backup", Args: cobra.ExactArgs(1)}
+	cmd.Flags().String("instance", "", "Expected original VM UUID whose data will be replaced (required)")
 	cmd.Flags().String("backup-storage", "", "Optional source backup storage name or UUID")
 	cmd.Flags().Duration("request-timeout", 30*time.Minute, "Deadline for lookup and backup restore")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -163,13 +164,17 @@ func newInstanceRevertBackupCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
+		instanceUUID := strings.ToLower(strings.TrimSpace(flagString(cmd, "instance")))
+		if !zstackUUIDPattern.MatchString(instanceUUID) {
+			return fmt.Errorf("--instance must be the expected original VM UUID (32 hexadecimal characters)")
+		}
 		if _, err = operationTimeout(cmd); err != nil {
 			return err
 		}
 		storage := strings.TrimSpace(flagString(cmd, "backup-storage"))
 		request := param.RevertVmFromVmBackupParam{Params: param.RevertVmFromVmBackupParamDetail{BackupStorageUuid: stringPtrIfNotEmpty(storage)}}
 		if isInstanceDryRun(cmd) {
-			return printVMOperationDryRun(cmd, vmOperationPreview{Operation: "vm-revert-backup", Target: groupUUID, Params: request})
+			return printVMOperationDryRun(cmd, vmOperationPreview{Operation: "vm-revert-backup", Instance: instanceUUID, Target: groupUUID, Params: request})
 		}
 		ctx, cancel, cli, err := newVMOperationClient(cmd)
 		if err != nil {
@@ -180,6 +185,15 @@ func newInstanceRevertBackupCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
+		for _, backup := range backups {
+			if backup.VmInstanceUuid == "" || !strings.EqualFold(backup.VmInstanceUuid, instanceUUID) {
+				return fmt.Errorf("backup group VM identity is missing or differs from --instance; no restore submitted")
+			}
+		}
+		vm, err := cli.Reader().ResolveExactUUID(ctx, "instance", instanceUUID)
+		if err != nil {
+			return err
+		}
 		if storage != "" {
 			source, err := resolveOperationTarget(ctx, cli, "backup-storage", storage)
 			if err != nil {
@@ -187,7 +201,7 @@ func newInstanceRevertBackupCommand() *cobra.Command {
 			}
 			request.Params.BackupStorageUuid = &source.UUID
 		}
-		confirmed, err := confirmVMRestore(cmd, fmt.Sprintf("Replace the original VM data from backup-group/%s (%d matching backup records)? Type 'yes' to confirm: ", groupUUID, len(backups)))
+		confirmed, err := confirmVMRestore(cmd, fmt.Sprintf("Replace data in instance/%s (%s) from backup-group/%s (%d matching backup records)? Type 'yes' to confirm: ", vm.UUID, vm.Name, groupUUID, len(backups)))
 		if err != nil {
 			return err
 		}

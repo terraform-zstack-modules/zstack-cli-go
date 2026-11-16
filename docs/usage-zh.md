@@ -131,14 +131,14 @@ zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --yes -o json
 zstack-cli instance backup VM_UUID --backup-storage BS_UUID --name web-01-backup -o json
 zstack-cli volume backup VOLUME_UUID --backup-storage BS_UUID --name disk-backup -o json
 zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' -o json
-zstack-cli instance revert-backup BACKUP_GROUP_UUID --dry-run -o json
-zstack-cli instance revert-backup BACKUP_GROUP_UUID --yes -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --dry-run -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --yes -o json
 zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name web-01-restored \
   --instance-offering OFFERING_UUID --l3-network L3_UUID -o json
 # 也可用 --cpu 1 --memory 1G 替代 --instance-offering。
 ```
 
-`instance backup` 从虚拟机根盘 UUID 创建整机备份，并在结果中返回备份组 UUID；单盘使用 `volume backup`。`test-qa` 实测中，未挂载测试数据盘的备份返回 HTTP 503，挂载后备份成功；重试前应核对云盘实时状态与当前 Cloud 的要求。`--mode` 可传当前 Cloud 支持的备份模式，CLI 不替服务器判断许可和模式。`revert-backup` **覆盖原虚拟机数据**，默认交互确认；`create-from-backup` 创建另一台虚拟机。恢复命令只接受 32 位十六进制备份组 UUID，不按名称猜测。写请求失败或超时后先查询备份组、虚拟机和任务状态，再决定是否重试。
+`instance backup` 从虚拟机根盘 UUID 创建整机备份，并在结果中返回备份组 UUID；单盘使用 `volume backup`。`test-qa` 实测中，未挂载测试数据盘的备份返回 HTTP 503，挂载后备份成功；重试前应核对云盘实时状态与当前 Cloud 的要求。`--mode` 可传当前 Cloud 支持的备份模式，CLI 不替服务器判断许可和模式。`revert-backup` **覆盖原虚拟机数据**，必须传预期原 VM 的 32 位 UUID；写入前核对备份组内每条记录的 VM 身份，身份缺失或不一致时拒绝，并在交互确认中显示 VM。`create-from-backup` 创建另一台虚拟机。恢复命令只接受 32 位十六进制备份组 UUID，不按名称猜测。写请求失败或超时后先查询备份组、虚拟机和任务状态，再决定是否重试。
 
 只清理已核实属于本次任务的资源；备份和快照组按各自的 UUID 删除，命令先读取并核对身份：
 

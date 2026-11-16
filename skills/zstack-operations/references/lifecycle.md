@@ -47,12 +47,12 @@ zstack-cli get volume-backups -q 'groupUuid=BACKUP_GROUP_UUID' --context lab -o 
 
 ```sh
 zstack-cli snapshot revert-group SNAPSHOT_GROUP_UUID --context lab --yes -o json
-zstack-cli instance revert-backup BACKUP_GROUP_UUID --context lab --yes -o json
+zstack-cli instance revert-backup BACKUP_GROUP_UUID --instance ORIGINAL_VM_UUID --context lab --yes -o json
 zstack-cli instance create-from-backup BACKUP_GROUP_UUID --name RESTORED_VM \
   --cpu 1 --memory 1G --l3-network L3_UUID --context lab -o json
 ```
 
-前两条会覆盖原虚拟机当前数据，执行前确认目标和备份点；`--yes` 只用于已授权的目标。`create-from-backup` 新建虚拟机。恢复命令使用 32 位十六进制组 UUID，超时后先查询备份、快照组、虚拟机和作业状态，不自动重试。
+前两条会覆盖原虚拟机当前数据，执行前确认目标和备份点；整机备份回滚必须传预期原 VM UUID，CLI 核对组内每条备份记录的 VM 身份。`--yes` 只用于已授权的目标。`create-from-backup` 新建虚拟机。恢复命令使用 32 位十六进制组 UUID，超时后先查询备份、快照组、虚拟机和作业状态，不自动重试。
 
 本轮新建的备份与快照组清理使用 `delete vm-backup BACKUP_GROUP_UUID`、`delete volume-backup VOLUME_BACKUP_UUID`、`delete snapshot-group SNAPSHOT_GROUP_UUID`。这三条命令先核对 UUID；`--dry-run` 离线预览。只清理 journal 确认由本轮创建的对象。
 

@@ -82,6 +82,13 @@ func readVMRootVolume(ctx context.Context, cli *client.MutationClient, vmUUID st
 	return vm.RootVolumeUuid, nil
 }
 
+func requireVMResultIdentity(result view.VmInstanceInventoryView, expectedUUID, operation string) error {
+	if result.UUID != expectedUUID {
+		return fmt.Errorf("%s response omitted or mismatched VM UUID; query instance/%s before retrying", operation, expectedUUID)
+	}
+	return nil
+}
+
 func newInstanceMigrateCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "migrate <name-or-uuid>", Short: "Migrate a running VM to another host", Args: cobra.ExactArgs(1)}
 	cmd.Flags().String("host", "", "Destination host name or UUID")
@@ -117,6 +124,9 @@ func newInstanceMigrateCommand() *cobra.Command {
 		request.Params.HostUuid = &destination.UUID
 		var result view.VmInstanceInventoryView
 		if err := cli.Mutate(ctx, http.MethodPut, "v1/vm-instances/"+url.PathEscape(vm.UUID)+"/actions", map[string]any{"migrateVm": request.Params}, &result); err != nil {
+			return err
+		}
+		if err := requireVMResultIdentity(result, vm.UUID, "migration"); err != nil {
 			return err
 		}
 		return printInstanceResult(cmd, fmt.Sprintf("instance/%s migrated to host/%s", vm.Name, destination.Name), result)
@@ -178,6 +188,9 @@ func newInstanceMigrateStorageCommand() *cobra.Command {
 		}
 		var result view.VmInstanceInventoryView
 		if err := cli.Mutate(ctx, http.MethodPut, "v1/vm-instances/"+url.PathEscape(vm.UUID)+"/actions", map[string]any{"primaryStorageMigrateVm": request.Params}, &result); err != nil {
+			return err
+		}
+		if err := requireVMResultIdentity(result, vm.UUID, "storage migration"); err != nil {
 			return err
 		}
 		return printInstanceResult(cmd, fmt.Sprintf("instance/%s migrated to primary-storage/%s", vm.Name, destination.Name), result)

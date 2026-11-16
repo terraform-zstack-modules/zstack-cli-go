@@ -14,7 +14,7 @@
 | 快照组 | `snapshot create-group <vm> --name <name> [--with-memory]`；`snapshot revert-group <group-uuid>` | `CreateVolumeSnapshotGroup`、`RevertVmFromSnapshotGroup` |
 | 整机备份 | `instance backup <vm> --backup-storage <storage> --name <name> [--mode <mode>]` | `CreateVmBackup` |
 | 单盘备份 | `volume backup <volume> --backup-storage <storage> --name <name> [--mode <mode>]` | `CreateVolumeBackup` |
-| 覆盖原虚拟机 | `instance revert-backup <group-uuid> [--backup-storage <storage>] --yes` | `RevertVmFromVmBackup` |
+| 覆盖原虚拟机 | `instance revert-backup <group-uuid> --instance <original-vm-uuid> [--backup-storage <storage>] --yes` | `RevertVmFromVmBackup` |
 | 从备份新建虚拟机 | `instance create-from-backup <group-uuid> --name <name> (--instance-offering <offering> \| --cpu <n> --memory <size>) [--l3-network <network>]...` | `CreateVmFromVmBackup` |
 | 查询备份和快照组 | `get volume-backups`；`get snapshot-groups` | `QueryVolumeBackup`、`QueryVolumeSnapshotGroup` |
 | 清理本轮测试资源 | `delete vm-backup <group-uuid>`；`delete volume-backup <uuid>`；`delete snapshot-group <group-uuid>` | `DeleteVmBackup`、`DeleteVolumeBackup`、`DeleteVolumeSnapshotGroup` |

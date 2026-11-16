@@ -4744,6 +4744,7 @@ Usage:
 Flags:
       --backup-storage string      Optional source backup storage name or UUID
   -h, --help                       help for revert-backup
+      --instance string            Expected original VM UUID whose data will be replaced (required)
       --request-timeout duration   Deadline for lookup and backup restore (default 30m0s)
 
 Global Flags:
