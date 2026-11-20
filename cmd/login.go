@@ -35,6 +35,8 @@ var loginCmd = &cobra.Command{
 	Use:   "login [endpoint]",
 	Short: "Login to ZStack API server",
 	Long: `Login to ZStack API server and save the session for future commands.
+To reuse a saved context, run 'zstack-cli config use-context <name>' or pass '--context <name>' to the resource command.
+
 Example:
   zstack-cli login 10.255.255.23 --username admin --password password
   zstack-cli login 10.255.255.23 --access-key-id AK --access-key-secret SK`,
@@ -46,7 +48,7 @@ Example:
 		} else {
 			endpoint = viper.GetString("endpoint")
 			if endpoint == "" {
-				return fmt.Errorf("no endpoint specified")
+				return fmt.Errorf("no endpoint specified. Run 'zstack-cli login <endpoint>' to log in, or 'zstack-cli config use-context <name>' to select a saved context")
 			}
 		}
 

@@ -17,12 +17,11 @@ package config
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"os"
 	"path/filepath"
 
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"gopkg.in/yaml.v3"
 )
 
@@ -124,7 +123,10 @@ func saveConfigFile(file string, cfg *ZStackConfig) error {
 func GetCurrentContext(cfg *ZStackConfig) (*Context, error) {
 	name := SelectedContextName(cfg)
 	if name == "" {
-		return nil, clierr.Wrap(clierr.Auth, errors.New("no current context, please login first"))
+		if len(cfg.Contexts) > 0 {
+			return nil, clierr.Wrap(clierr.Auth, fmt.Errorf("no current context. Run 'zstack-cli config get-contexts' to list saved contexts, then select one with 'zstack-cli config use-context <name>' or pass '--context <name>' for one command"))
+		}
+		return nil, clierr.Wrap(clierr.Auth, fmt.Errorf("no current context. Run 'zstack-cli login <endpoint>' to create one"))
 	}
 	ctx, ok := cfg.Contexts[name]
 	if !ok {

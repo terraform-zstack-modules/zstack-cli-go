@@ -39,6 +39,70 @@ func readContexts(t *testing.T, p string) config.ZStackConfig {
 	}
 	return c
 }
+
+func TestReuseSavedContextWithoutDefault(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Method != http.MethodGet || r.URL.Path != "/zstack/v1/hosts" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if !strings.HasPrefix(r.Header.Get("Authorization"), "ZStack qa-key:") {
+			t.Error("query did not use the saved access key")
+		}
+		inventory(w)
+	}))
+	defer server.Close()
+	qa := config.Context{Endpoint: strings.TrimPrefix(server.URL, "http://"), AccessKeyID: "qa-key", AccessKeySecret: "qa-secret"}
+	path := writeContexts(t, config.ZStackConfig{Contexts: map[string]config.Context{
+		"test-qa": qa,
+		"other":   {Endpoint: "unused.invalid", SessionUUID: "other-session"},
+	}})
+
+	for _, tc := range []struct {
+		args []string
+		code string
+		exit int
+	}{
+		{[]string{"get", "hosts"}, "authentication_failed", 3},
+		{[]string{"config", "current-context", "test-qa"}, "invalid_arguments", 2},
+	} {
+		_, stderr, err := invokeCLI(t, path, "", append(tc.args, "--error-format", "json")...)
+		assertDiagnostic(t, stderr, err, tc.code, tc.exit)
+		_, stderr, err = invokeCLI(t, path, "", tc.args...)
+		if err == nil || !strings.Contains(stderr, "zstack-cli config use-context <name>") {
+			t.Fatalf("%v did not explain how to select a saved context: %s", tc.args, stderr)
+		}
+		if tc.exit == 3 && (!strings.Contains(stderr, "--context <name>") || strings.Contains(stderr, "login")) {
+			t.Fatalf("unexpected guidance for a query with saved contexts: %s", stderr)
+		}
+	}
+	if requests.Load() != 0 || readContexts(t, path).CurrentContext != "" {
+		t.Fatal("missing or invalid selection made a request or changed the default")
+	}
+
+	run := func(args ...string) string {
+		t.Helper()
+		out, stderr, err := invokeCLI(t, path, "", args...)
+		if err != nil {
+			t.Fatalf("%v: %v\n%s\n%s", args, err, out, stderr)
+		}
+		return strings.TrimSpace(out)
+	}
+	run("get", "hosts", "--context", "test-qa")
+	if readContexts(t, path).CurrentContext != "" {
+		t.Fatal("one-command selection changed the default")
+	}
+	run("config", "use-context", "test-qa")
+	if run("config", "current-context") != "test-qa" || requests.Load() != 1 {
+		t.Fatal("setting or printing the default context made a request or selected the wrong context")
+	}
+	run("get", "hosts")
+	if saved := readContexts(t, path); requests.Load() != 2 || saved.CurrentContext != "test-qa" || saved.Contexts["test-qa"] != qa {
+		t.Fatal("query did not reuse the selected context or changed its saved credentials")
+	}
+}
+
 func TestContextOverrideRoutesReadsAndWrites(t *testing.T) {
 	var wrong, selected atomic.Int32
 	var deleting atomic.Bool

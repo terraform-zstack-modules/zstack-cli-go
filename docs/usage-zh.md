@@ -41,13 +41,16 @@ AK/SK 的两条请求路径使用相同的 Date 与签名逻辑，默认采用 C
 ```sh
 zstack-cli config get-contexts
 zstack-cli config use-context lab
+zstack-cli config current-context
 zstack-cli config view -o json
 zstack-cli get instances --context lab -o json
 zstack-cli doctor --context lab --offline -o json
 zstack-cli doctor --context lab --request-timeout 15s -o json
 ```
 
-`--context` 只影响本次命令，不更改默认环境。登录另一个环境但不切换默认值，使用 `login ... --context-name staging --no-switch`。登录使用 `--context-name`，不是 `--context`。
+`config get-contexts` 中的 `CURRENT` 全为 `false` 时，配置里没有选中的默认环境。已有 context 可以直接用 `config use-context lab` 设为默认，或用 `get hosts --context lab` 临时指定。两种方式都复用已保存的鉴权信息。 `config current-context` 用于查看当前生效的名称。
+
+`--context` 只影响本次命令。登录另一个环境并保留默认值时，使用 `login ... --context-name staging --no-switch`。
 
 `doctor --offline` 检查本地配置；在线模式额外检查已有会话和一条 zone 查询。两者都不登录、不续期、不修改配置。在线检查通过不代表所有 API 权限或模块许可可用。已有会话过期时，doctor 会失败，即使配置中保存了密码。
 

@@ -2,6 +2,8 @@
 
 [English](queries.en.md) | [简体中文](queries.md) | [示例目录](README.md)
 
+已有 `lab` 的鉴权配置时，可以直接用 `zstack-cli get hosts --context lab` 查询。要把它设为默认环境，运行 `zstack-cli config use-context lab`。
+
 ```sh
 zstack-cli config get-contexts
 zstack-cli doctor --context lab --offline -o json

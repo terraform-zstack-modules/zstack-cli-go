@@ -66,7 +66,7 @@ func TestUnauthenticatedGetReturnsNonZero(t *testing.T) {
 		t.Fatalf("expected unauthenticated get to fail\n%s", out)
 	}
 
-	if !strings.Contains(out, "Not logged in") {
+	if !strings.Contains(out, "zstack-cli login <endpoint>") {
 		t.Fatalf("expected login error, got\n%s", out)
 	}
 }
@@ -77,7 +77,7 @@ func TestLoginWithoutEndpointReturnsNonZero(t *testing.T) {
 		t.Fatalf("expected login without endpoint to fail\n%s", out)
 	}
 
-	if !strings.Contains(out, "no endpoint specified") {
+	if !strings.Contains(out, "no endpoint specified") || !strings.Contains(out, "zstack-cli config use-context <name>") {
 		t.Fatalf("expected endpoint error, got\n%s", out)
 	}
 }

@@ -2,6 +2,8 @@
 
 [English](queries.en.md) | [简体中文](queries.md) | [Examples](README.en.md)
 
+With credentials already saved for `lab`, query it directly with `zstack-cli get hosts --context lab`. Run `zstack-cli config use-context lab` to set it as the default.
+
 ```sh
 zstack-cli config get-contexts
 zstack-cli doctor --context lab --offline -o json
