@@ -485,7 +485,7 @@ Use "zstack-cli config [command] --help" for more information about a command.
 ## zstack-cli config current-context
 
 ```text
-Print the effective context name
+Print the effective context name. To set the default, run 'zstack-cli config use-context <name>'.
 
 Usage:
   zstack-cli config current-context [flags]
@@ -5201,6 +5201,8 @@ Global Flags:
 
 ```text
 Login to ZStack API server and save the session for future commands.
+To reuse a saved context, run 'zstack-cli config use-context <name>' or pass '--context <name>' to the resource command.
+
 Example:
   zstack-cli login 10.255.255.23 --username admin --password password
   zstack-cli login 10.255.255.23 --access-key-id AK --access-key-secret SK

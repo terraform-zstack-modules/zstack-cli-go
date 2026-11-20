@@ -19,7 +19,7 @@ func Fetch[T any](cmd *cobra.Command, params *param.QueryParam, path string, opt
 	defer cancel()
 	reader, err := client.NewReadClient(ctx)
 	if err != nil {
-		return query.Result[T]{}, fmt.Errorf("Not logged in: %w", err)
+		return query.Result[T]{}, err
 	}
 	all, _ := cmd.Flags().GetBool("all-pages")
 	return query.Run(ctx, params.Values, all, func(ctx context.Context, q url.Values) (query.Result[T], error) {

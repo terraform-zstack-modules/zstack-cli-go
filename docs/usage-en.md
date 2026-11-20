@@ -41,13 +41,16 @@ The default configuration is `~/.zstack-cli/config.yaml`. Set `ZSTACK_CONFIG` to
 ```sh
 zstack-cli config get-contexts
 zstack-cli config use-context lab
+zstack-cli config current-context
 zstack-cli config view -o json
 zstack-cli get instances --context lab -o json
 zstack-cli doctor --context lab --offline -o json
 zstack-cli doctor --context lab --request-timeout 15s -o json
 ```
 
-`--context` selects an environment for one command. To save another login while preserving the default context, use `login ... --context-name staging --no-switch`. Login accepts `--context-name`.
+If every saved context shows `CURRENT=false` in `config get-contexts`, choose a default with `config use-context lab` or select one for a single command with `get hosts --context lab`. Both reuse the saved credentials. Run `config current-context` to print the effective context name.
+
+To save another login while preserving the default context, use `login ... --context-name staging --no-switch`.
 
 `doctor --offline` checks local configuration. Online doctor also validates an existing account session and queries one zone. It performs no login, renewal or configuration update. An expired session fails even when a password is saved. A successful zone query establishes that query's access and basic response compatibility. Other API permissions and module licenses need their own checks.
 

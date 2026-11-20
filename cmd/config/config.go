@@ -64,21 +64,32 @@ func init() {
 		}
 		return printConfig(cmd, rows)
 	}})
-	ConfigCmd.AddCommand(&cobra.Command{Use: "current-context", Short: "Print the effective context name", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := core.LoadConfig()
-		if err != nil {
-			return err
-		}
-		if _, err = core.GetCurrentContext(cfg); err != nil {
-			return err
-		}
-		output, _ := cmd.Flags().GetString("output")
-		if output == "table" || output == "text" {
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), core.SelectedContextName(cfg))
-			return err
-		}
-		return printConfig(cmd, core.SelectedContextName(cfg))
-	}})
+	ConfigCmd.AddCommand(&cobra.Command{
+		Use:   "current-context",
+		Short: "Print the effective context name",
+		Long:  "Print the effective context name. To set the default, run 'zstack-cli config use-context <name>'.",
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("current-context takes no arguments. To set the default, run 'zstack-cli config use-context <name>'")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := core.LoadConfig()
+			if err != nil {
+				return err
+			}
+			if _, err = core.GetCurrentContext(cfg); err != nil {
+				return err
+			}
+			output, _ := cmd.Flags().GetString("output")
+			if output == "table" || output == "text" {
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), core.SelectedContextName(cfg))
+				return err
+			}
+			return printConfig(cmd, core.SelectedContextName(cfg))
+		},
+	})
 	addContextMutation("use-context <name>", 1, func(cfg *core.ZStackConfig, args []string) error { return core.UseContext(cfg, args[0]) })
 	addContextMutation("rename-context <old-name> <new-name>", 2, func(cfg *core.ZStackConfig, args []string) error { return core.RenameContext(cfg, args[0], args[1]) })
 	addContextMutation("delete-context <name>", 1, func(cfg *core.ZStackConfig, args []string) error { return core.DeleteContext(cfg, args[0]) })
